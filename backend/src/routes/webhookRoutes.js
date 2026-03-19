@@ -1,5 +1,5 @@
 import express from 'express';
-import { telegramWebhookController } from './telegramController.js';
+import { telegramWebhookController } from '../controllers/telegramController.js';
 
 const router = express.Router();
 
