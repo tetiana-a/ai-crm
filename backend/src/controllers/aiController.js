@@ -1,4 +1,4 @@
-import { pool } from '../config/db.js';
+import pool from '../config/db.js';
 import { generateBusinessInsight, generateReply } from '../services/openaiService.js';
 
 function languageMap(code) {
