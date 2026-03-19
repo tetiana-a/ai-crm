@@ -78,3 +78,18 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+
+<button
+  onClick={async () => {
+    try {
+      const { data } = await api.get('/auth/telegram-link-code');
+
+      alert(`Send this to bot:\n/link ${data.code}`);
+    } catch (err) {
+      alert('Error generating code');
+    }
+  }}
+>
+  🔗 Connect Telegram
+</button>
