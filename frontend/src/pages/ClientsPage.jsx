@@ -6,32 +6,48 @@ import EmptyState from '../components/EmptyState';
 export default function ClientsPage() {
   const { t } = useLanguage();
   const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
     full_name: '',
     phone: '',
+    email: '',
     messenger: '',
     notes: '',
   });
 
   async function load() {
-    const { data } = await api.get('/clients');
-    setClients(data);
+    try {
+      setLoading(true);
+      const { data } = await api.get('/clients');
+      setClients(data);
+    } catch (error) {
+      console.error('Failed to load clients:', error);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    load().catch(console.error);
+    load();
   }, []);
 
   const submit = async (e) => {
     e.preventDefault();
-    await api.post('/clients', form);
-    setForm({
-      full_name: '',
-      phone: '',
-      messenger: '',
-      notes: '',
-    });
-    load();
+
+    try {
+      await api.post('/clients', form);
+      setForm({
+        full_name: '',
+        phone: '',
+        email: '',
+        messenger: '',
+        notes: '',
+      });
+      await load();
+    } catch (error) {
+      console.error('Failed to create client:', error);
+      alert(error?.response?.data?.message || 'Failed to create client');
+    }
   };
 
   return (
@@ -71,6 +87,16 @@ export default function ClientsPage() {
             </div>
 
             <div className="form-group">
+              <label className="form-label">{t.email || 'Email'}</label>
+              <input
+                type="email"
+                placeholder={t.email || 'Email'}
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+            </div>
+
+            <div className="form-group">
               <label className="form-label">{t.messenger || 'Messenger'}</label>
               <input
                 placeholder={t.messenger || 'Messenger'}
@@ -95,7 +121,9 @@ export default function ClientsPage() {
         </div>
 
         <div>
-          {clients.length === 0 ? (
+          {loading ? (
+            <div className="panel">Loading...</div>
+          ) : clients.length === 0 ? (
             <EmptyState
               icon="👥"
               title={t.noClientsTitle || 'No clients yet'}
@@ -110,6 +138,12 @@ export default function ClientsPage() {
                 <article className="item-card" key={c.id}>
                   <h3>{c.full_name}</h3>
                   <p>{c.phone || t.noPhone || 'No phone'}</p>
+
+                  {c.email && (
+                    <p className="muted" style={{ fontSize: 13 }}>
+                      {c.email}
+                    </p>
+                  )}
 
                   {c.messenger && (
                     <p className="mono" style={{ fontSize: 12 }}>
