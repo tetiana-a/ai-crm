@@ -5,6 +5,34 @@ import { env } from '../config/env.js';
 const TELEGRAM_API = `https://api.telegram.org/bot${env.telegramBotToken}`;
 const openai = env.openAiApiKey ? new OpenAI({ apiKey: env.openAiApiKey }) : null;
 
+async function linkTelegramToUser(code, telegramId, userData) {
+  const result = await pool.query(
+    `SELECT id FROM users WHERE telegram_code = $1`,
+    [code]
+  );
+
+  const user = result.rows[0];
+
+  if (!user) {
+    return { ok: false, text: 'Invalid code' };
+  }
+
+  await pool.query(`
+    INSERT INTO bot_links (user_id, telegram_id, username, first_name, last_name)
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (telegram_id)
+    DO UPDATE SET user_id = EXCLUDED.user_id
+  `, [
+    user.id,
+    telegramId,
+    userData.username,
+    userData.first_name,
+    userData.last_name
+  ]);
+
+  return { ok: true, text: '✅ Telegram connected to your account' };
+}
+
 async function getUserIdByTelegram(telegramId) {
   const result = await pool.query(
     `SELECT user_id FROM bot_links WHERE telegram_id = $1`,
