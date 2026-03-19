@@ -239,11 +239,44 @@ Commands:
     }
 
     if (text === '/stats') {
-      await sendMessage(chatId, await getStatsText(), {
-        reply_markup: mainKeyboard(),
-      });
-      return res.sendStatus(200);
-    }
+  const telegramId = message.from.id;
+  const username = message.from.username || null;
+  const firstName = message.from.first_name || null;
+  const lastName = message.from.last_name || null;
+
+  // 🔥 MVP: твій user_id (з таблиці users)
+  const userId = 1;
+
+  await pool.query(`
+    INSERT INTO bot_links (user_id, telegram_id, username, first_name, last_name)
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (telegram_id)
+    DO UPDATE SET
+      username = EXCLUDED.username,
+      first_name = EXCLUDED.first_name,
+      last_name = EXCLUDED.last_name
+  `, [
+    userId,
+    telegramId,
+    username,
+    firstName,
+    lastName
+  ]);
+
+  await sendMessage(
+    chatId,
+    `👋 <b>Welcome to Nexara CRM Bot</b>
+
+Commands:
+/help
+/clients
+/today
+/stats`,
+    { reply_markup: mainKeyboard() }
+  );
+
+  return res.sendStatus(200);
+}
 
     if (text.startsWith('/newclient')) {
       const result = await createClientFromText(text);
