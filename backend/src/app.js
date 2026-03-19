@@ -15,8 +15,7 @@ const app = express();
 
 app.use(helmet());
 app.use(cors({
-  origin: env.frontendUrl,
-  credentials: true
+  origin: '*'
 }));
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('dev'));
