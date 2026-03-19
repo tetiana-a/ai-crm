@@ -2,15 +2,14 @@ import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { env } from './config/env.js';
 
+import { env } from './config/env.js';
 import aiRoutes from './routes/aiRoutes.js';
 import appointmentRoutes from './routes/appointmentRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import clientRoutes from './routes/clientRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
-
 import { errorMiddleware } from './middleware/errorMiddleware.js';
 
 const app = express();
