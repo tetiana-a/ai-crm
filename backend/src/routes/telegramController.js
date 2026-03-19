@@ -14,21 +14,28 @@ async function linkTelegramToUser(code, telegramId, userData) {
   const user = result.rows[0];
 
   if (!user) {
-    return { ok: false, text: 'Invalid code' };
+    return { ok: false, text: '❌ Invalid code' };
   }
 
-  await pool.query(`
+  await pool.query(
+    `
     INSERT INTO bot_links (user_id, telegram_id, username, first_name, last_name)
     VALUES ($1, $2, $3, $4, $5)
     ON CONFLICT (telegram_id)
-    DO UPDATE SET user_id = EXCLUDED.user_id
-  `, [
-    user.id,
-    telegramId,
-    userData.username,
-    userData.first_name,
-    userData.last_name
-  ]);
+    DO UPDATE SET
+      user_id = EXCLUDED.user_id,
+      username = EXCLUDED.username,
+      first_name = EXCLUDED.first_name,
+      last_name = EXCLUDED.last_name
+    `,
+    [
+      user.id,
+      telegramId,
+      userData.username || null,
+      userData.first_name || null,
+      userData.last_name || null,
+    ]
+  );
 
   return { ok: true, text: '✅ Telegram connected to your account' };
 }
@@ -364,7 +371,7 @@ User message: ${text}
 
   try {
     parsed = JSON.parse(completion.choices[0].message.content);
-  } catch (e) {
+  } catch {
     return {
       ok: false,
       text: 'AI could not parse the message.',
@@ -500,66 +507,46 @@ export async function telegramWebhookController(req, res) {
     const text = message.text.trim();
 
     if (text === '/start') {
-      const telegramId = message.from.id;
-      const username = message.from.username || null;
-      const firstName = message.from.first_name || null;
-      const lastName = message.from.last_name || null;
-
-      const userId = 1;
-
-      await pool.query(
-        `
-        INSERT INTO bot_links (user_id, telegram_id, username, first_name, last_name)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (telegram_id)
-        DO UPDATE SET
-          username = EXCLUDED.username,
-          first_name = EXCLUDED.first_name,
-          last_name = EXCLUDED.last_name
-        `,
-        [userId, telegramId, username, firstName, lastName]
-      );
-
       await sendMessage(
         chatId,
         `👋 <b>Welcome to Nexara CRM Bot</b>
 
-Commands:
-/help
-/clients
-/today
-/stats
-/newclient
-/newbooking
-/ai add client Anna tomorrow 15:00`,
+To connect your CRM account, send:
+<code>/link YOUR_CODE</code>
+
+Example:
+<code>/link ABC123</code>`,
         { reply_markup: mainKeyboard() }
       );
 
       return res.sendStatus(200);
     }
-if (text.startsWith('/link ')) {
-  const code = text.split(' ')[1]?.trim();
 
-  if (!code) {
-    await sendMessage(chatId, 'Use format:\n/link ABC123', {
-      reply_markup: mainKeyboard(),
-    });
-    return res.sendStatus(200);
-  }
+    if (text.startsWith('/link ')) {
+      const code = text.split(' ')[1]?.trim();
 
-  const result = await linkTelegramToUser(code, chatId, message.from);
+      if (!code) {
+        await sendMessage(chatId, 'Use format:\n/link ABC123', {
+          reply_markup: mainKeyboard(),
+        });
+        return res.sendStatus(200);
+      }
 
-  await sendMessage(chatId, result.text, {
-    reply_markup: mainKeyboard(),
-  });
+      const result = await linkTelegramToUser(code, chatId, message.from);
 
-  return res.sendStatus(200);
-}
+      await sendMessage(chatId, result.text, {
+        reply_markup: mainKeyboard(),
+      });
+
+      return res.sendStatus(200);
+    }
+
     if (text === '/help') {
       await sendMessage(
         chatId,
         `<b>Commands:</b>
 /start — start bot
+/link ABC123 — connect Telegram
 /help — help
 /clients — latest clients
 /today — today appointments
@@ -586,22 +573,12 @@ if (text.startsWith('/link ')) {
       return res.sendStatus(200);
     }
 
-if (text === '/start') {
-  await sendMessage(
-    chatId,
-    `👋 <b>Welcome to Nexara CRM Bot</b>
-
-To connect your CRM account, send:
-<code>/link YOUR_CODE</code>
-
-Example:
-<code>/link ABC123</code>`,
-    { reply_markup: mainKeyboard() }
-  );
-
-  return res.sendStatus(200);
-}
-  
+    if (text === '/stats') {
+      await sendMessage(chatId, await getStatsText(chatId), {
+        reply_markup: mainKeyboard(),
+      });
+      return res.sendStatus(200);
+    }
 
     if (text.startsWith('/newclient')) {
       const result = await createClientFromText(text, chatId);
