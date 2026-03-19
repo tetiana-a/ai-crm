@@ -11,6 +11,7 @@ import clientRoutes from './routes/clientRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import { errorMiddleware } from './middleware/errorMiddleware.js';
+import webhookRoutes from './routes/webhookRoutes.js';
 
 const app = express();
 
@@ -58,5 +59,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/ai', aiRoutes);
 
 app.use(errorMiddleware);
+
+app.use('/api/webhooks', webhookRoutes);
 
 export default app;
