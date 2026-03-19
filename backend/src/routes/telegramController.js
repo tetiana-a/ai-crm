@@ -569,14 +569,13 @@ Commands:
       return res.sendStatus(200);
     }
 
-    if (text === '/start') {
+if (text === '/start') {
   await sendMessage(
     chatId,
     `👋 <b>Welcome to Nexara CRM Bot</b>
 
-To connect your CRM account:
-Use command:
-<link /link YOUR_CODE>
+To connect your CRM account, send:
+<code>/link YOUR_CODE</code>
 
 Example:
 <code>/link ABC123</code>`,
