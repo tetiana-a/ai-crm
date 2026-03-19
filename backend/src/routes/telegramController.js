@@ -52,13 +52,25 @@ function mainKeyboard() {
   };
 }
 
-async function getClientsText() {
+async function getClientsText(telegramId) {
+  const userId = await getUserIdByTelegram(telegramId);
+
+  if (!userId) return 'User not linked. Send /start';
+
   const result = await pool.query(`
-    SELECT full_name, phone, email
+    SELECT full_name, phone
     FROM clients
+    WHERE user_id = $1
     ORDER BY created_at DESC
     LIMIT 10
-  `);
+  `, [userId]);
+
+  if (!result.rows.length) return 'No clients yet.';
+
+  return result.rows
+    .map((c, i) => `${i + 1}. ${c.full_name} ${c.phone || ''}`)
+    .join('\n');
+}
 
   const rows = result.rows;
 
