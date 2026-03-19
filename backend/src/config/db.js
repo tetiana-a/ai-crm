@@ -3,7 +3,7 @@ import { env } from './env.js';
 
 const { Pool } = pg;
 
-const pool = new Pool({
+export const pool = new Pool({
   connectionString: env.databaseUrl,
   ssl: {
     rejectUnauthorized: false,
