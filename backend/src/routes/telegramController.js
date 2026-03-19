@@ -569,12 +569,22 @@ Commands:
       return res.sendStatus(200);
     }
 
-    if (text === '/stats') {
-      await sendMessage(chatId, await getStatsText(chatId), {
-        reply_markup: mainKeyboard(),
-      });
-      return res.sendStatus(200);
-    }
+    if (text === '/start') {
+  await sendMessage(
+    chatId,
+    `👋 <b>Welcome to Nexara CRM Bot</b>
+
+To connect your CRM account:
+Use command:
+<link /link YOUR_CODE>
+
+Example:
+<code>/link ABC123</code>`,
+    { reply_markup: mainKeyboard() }
+  );
+
+  return res.sendStatus(200);
+}
 
     if (text.startsWith('/newclient')) {
       const result = await createClientFromText(text, chatId);
