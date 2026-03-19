@@ -537,7 +537,24 @@ Commands:
 
       return res.sendStatus(200);
     }
+if (text.startsWith('/link ')) {
+  const code = text.split(' ')[1]?.trim();
 
+  if (!code) {
+    await sendMessage(chatId, 'Use format:\n/link ABC123', {
+      reply_markup: mainKeyboard(),
+    });
+    return res.sendStatus(200);
+  }
+
+  const result = await linkTelegramToUser(code, chatId, message.from);
+
+  await sendMessage(chatId, result.text, {
+    reply_markup: mainKeyboard(),
+  });
+
+  return res.sendStatus(200);
+}
     if (text === '/help') {
       await sendMessage(
         chatId,
@@ -584,6 +601,7 @@ Example:
 
   return res.sendStatus(200);
 }
+  
 
     if (text.startsWith('/newclient')) {
       const result = await createClientFromText(text, chatId);
