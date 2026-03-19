@@ -1,5 +1,5 @@
-import pg from "pg";
-import dotenv from "dotenv";
+import pg from 'pg';
+import dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -12,12 +12,12 @@ const pool = new Pool({
   },
 });
 
-pool.on("connect", () => {
-  console.log("✅ PostgreSQL connected");
+pool.on('connect', () => {
+  console.log('✅ PostgreSQL connected');
 });
 
-pool.on("error", (err) => {
-  console.error("❌ PostgreSQL pool error:", err);
+pool.on('error', (err) => {
+  console.error('❌ PostgreSQL pool error:', err);
 });
 
 export default pool;
