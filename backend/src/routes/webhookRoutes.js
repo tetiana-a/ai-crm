@@ -3,7 +3,7 @@ import { telegramWebhookController } from './telegramController.js';
 
 const router = express.Router();
 
-router.post('/webhook', async (req, res) => {
+router.post('/telegram', async (req, res) => {
   try {
     await telegramWebhookController(req, res);
   } catch (error) {
