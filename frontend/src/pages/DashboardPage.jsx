@@ -15,7 +15,12 @@ function StatCard({ icon, label, value, trend }) {
 
 export default function DashboardPage() {
   const { t } = useLanguage();
-  const [stats, setStats] = useState({ clients: 0, appointments: 0, payments: 0, revenue: 0 });
+  const [stats, setStats] = useState({
+    clients: 0,
+    appointments: 0,
+    payments: 0,
+    revenue: 0,
+  });
   const [insights, setInsights] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -37,6 +42,15 @@ export default function DashboardPage() {
     load();
   }, [t.loadingInsights]);
 
+  const handleConnectTelegram = async () => {
+    try {
+      const { data } = await api.get('/auth/telegram-link-code');
+      alert(`Send this to bot:\n/link ${data.code}`);
+    } catch (err) {
+      alert('Error generating code');
+    }
+  };
+
   return (
     <div>
       <div className="page-header">
@@ -54,21 +68,51 @@ export default function DashboardPage() {
           </div>
           <h1>{t.heroTitle}</h1>
           <p>{t.heroText}</p>
+
+          <div style={{ marginTop: '20px' }}>
+            <button className="primary-btn" onClick={handleConnectTelegram}>
+              🔗 Connect Telegram
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="stats-grid stagger">
-        <StatCard icon="◎" label={t.clientsLabel}      value={stats.clients}         trend={t.statTrendClients} />
-        <StatCard icon="◷" label={t.appointmentsLabel} value={stats.appointments}     trend={t.statTrendAppts} />
-        <StatCard icon="◈" label={t.paymentsLabel}     value={stats.payments}         trend={t.statTrendPayments} />
-        <StatCard icon="€" label={t.revenue}           value={`€ ${Number(stats.revenue || 0).toFixed(2)}`} trend={t.statTrendRevenue} />
+        <StatCard
+          icon="◎"
+          label={t.clientsLabel}
+          value={stats.clients}
+          trend={t.statTrendClients}
+        />
+        <StatCard
+          icon="◷"
+          label={t.appointmentsLabel}
+          value={stats.appointments}
+          trend={t.statTrendAppts}
+        />
+        <StatCard
+          icon="◈"
+          label={t.paymentsLabel}
+          value={stats.payments}
+          trend={t.statTrendPayments}
+        />
+        <StatCard
+          icon="€"
+          label={t.revenue}
+          value={`€ ${Number(stats.revenue || 0).toFixed(2)}`}
+          trend={t.statTrendRevenue}
+        />
       </div>
 
       <div className="panel">
         <h2>✦ {t.aiInsights}</h2>
         {loading ? (
           <div className="generating">
-            <div className="dot-blink"><span/><span/><span/></div>
+            <div className="dot-blink">
+              <span />
+              <span />
+              <span />
+            </div>
             {t.loadingInsights}
           </div>
         ) : (
@@ -78,18 +122,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-
-<button
-  onClick={async () => {
-    try {
-      const { data } = await api.get('/auth/telegram-link-code');
-
-      alert(`Send this to bot:\n/link ${data.code}`);
-    } catch (err) {
-      alert('Error generating code');
-    }
-  }}
->
-  🔗 Connect Telegram
-</button>
