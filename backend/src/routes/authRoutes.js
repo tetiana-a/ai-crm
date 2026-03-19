@@ -6,6 +6,19 @@ import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
+router.get('/telegram-link-code', authMiddleware, async (req, res) => {
+  const userId = req.user.id;
+
+  const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+  await pool.query(
+    `UPDATE users SET telegram_code = $1 WHERE id = $2`,
+    [code, userId]
+  );
+
+  res.json({ code });
+});
+
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password, preferred_language } = req.body;
