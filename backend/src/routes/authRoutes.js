@@ -1,8 +1,8 @@
-import express from "express";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import pool from "../config/db.js";
-import authMiddleware from "../middleware/authMiddleware.js";
+import express from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import pool from '../config/db.js';
+import authMiddleware from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -16,37 +16,39 @@ router.get('/telegram-link-code', authMiddleware, async (req, res) => {
       [code, userId]
     );
 
-    res.json({ code });
+    return res.json({ code });
   } catch (error) {
     console.error('telegram-link-code error:', error);
-    res.status(500).json({ message: 'Failed to generate Telegram link code' });
+    return res.status(500).json({
+      message: 'Failed to generate Telegram link code',
+    });
   }
 });
 
-router.post("/register", async (req, res) => {
+router.post('/register', async (req, res) => {
   try {
     const { name, email, password, preferred_language } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
-        message: "Email and password are required",
+        message: 'Email and password are required',
       });
     }
 
     if (password.length < 6) {
       return res.status(400).json({
-        message: "Password must be at least 6 characters",
+        message: 'Password must be at least 6 characters',
       });
     }
 
     const existingUser = await pool.query(
-      "SELECT id FROM users WHERE email = $1 LIMIT 1",
+      'SELECT id FROM users WHERE email = $1 LIMIT 1',
       [email.toLowerCase()]
     );
 
     if (existingUser.rows.length > 0) {
       return res.status(409).json({
-        message: "User already exists",
+        message: 'User already exists',
       });
     }
 
@@ -62,7 +64,7 @@ router.post("/register", async (req, res) => {
         name || null,
         email.toLowerCase(),
         password_hash,
-        preferred_language || "en",
+        preferred_language || 'en',
       ]
     );
 
@@ -75,27 +77,29 @@ router.post("/register", async (req, res) => {
         role: user.role,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: '7d' }
     );
 
     return res.status(201).json({
-      message: "Registration successful",
+      message: 'Registration successful',
       token,
       user,
     });
   } catch (error) {
-    console.error("REGISTER ERROR:", error);
-    return res.status(500).json({ message: "Server error during register" });
+    console.error('REGISTER ERROR:', error);
+    return res.status(500).json({
+      message: 'Server error during register',
+    });
   }
 });
 
-router.post("/login", async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
-        message: "Email and password are required",
+        message: 'Email and password are required',
       });
     }
 
@@ -112,13 +116,17 @@ router.post("/login", async (req, res) => {
     const user = result.rows[0];
 
     if (!user) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({
+        message: 'Invalid credentials',
+      });
     }
 
     const isMatch = await bcrypt.compare(password, user.password_hash);
 
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({
+        message: 'Invalid credentials',
+      });
     }
 
     const token = jwt.sign(
@@ -128,11 +136,11 @@ router.post("/login", async (req, res) => {
         role: user.role,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: '7d' }
     );
 
     return res.json({
-      message: "Login successful",
+      message: 'Login successful',
       token,
       user: {
         id: user.id,
@@ -144,12 +152,14 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("LOGIN ERROR:", error);
-    return res.status(500).json({ message: "Server error during login" });
+    console.error('LOGIN ERROR:', error);
+    return res.status(500).json({
+      message: 'Server error during login',
+    });
   }
 });
 
-router.get("/me", authMiddleware, async (req, res) => {
+router.get('/me', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
       `
@@ -164,13 +174,17 @@ router.get("/me", authMiddleware, async (req, res) => {
     const user = result.rows[0];
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({
+        message: 'User not found',
+      });
     }
 
     return res.json({ user });
   } catch (error) {
-    console.error("ME ERROR:", error);
-    return res.status(500).json({ message: "Server error fetching user" });
+    console.error('ME ERROR:', error);
+    return res.status(500).json({
+      message: 'Server error fetching user',
+    });
   }
 });
 
