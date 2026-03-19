@@ -7,16 +7,20 @@ import authMiddleware from "../middleware/authMiddleware.js";
 const router = express.Router();
 
 router.get('/telegram-link-code', authMiddleware, async (req, res) => {
-  const userId = req.user.id;
+  try {
+    const userId = req.user.id;
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-  const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    await pool.query(
+      `UPDATE users SET telegram_code = $1 WHERE id = $2`,
+      [code, userId]
+    );
 
-  await pool.query(
-    `UPDATE users SET telegram_code = $1 WHERE id = $2`,
-    [code, userId]
-  );
-
-  res.json({ code });
+    res.json({ code });
+  } catch (error) {
+    console.error('telegram-link-code error:', error);
+    res.status(500).json({ message: 'Failed to generate Telegram link code' });
+  }
 });
 
 router.post("/register", async (req, res) => {
