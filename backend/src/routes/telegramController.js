@@ -1,6 +1,15 @@
 import pool from '../config/db.js';
 import { env } from '../config/env.js';
 
+async function getUserIdByTelegram(telegramId) {
+  const result = await pool.query(
+    `SELECT user_id FROM bot_links WHERE telegram_id = $1`,
+    [telegramId]
+  );
+
+  return result.rows[0]?.user_id;
+}
+
 const TELEGRAM_API = `https://api.telegram.org/bot${env.telegramBotToken}`;
 
 async function telegram(method, body) {
