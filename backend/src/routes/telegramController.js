@@ -1,6 +1,8 @@
 import pool from '../config/db.js';
 import { env } from '../config/env.js';
 
+const TELEGRAM_API = `https://api.telegram.org/bot${env.telegramBotToken}`;
+
 async function getUserIdByTelegram(telegramId) {
   const result = await pool.query(
     `SELECT user_id FROM bot_links WHERE telegram_id = $1`,
@@ -9,8 +11,6 @@ async function getUserIdByTelegram(telegramId) {
 
   return result.rows[0]?.user_id;
 }
-
-const TELEGRAM_API = `https://api.telegram.org/bot${env.telegramBotToken}`;
 
 async function telegram(method, body) {
   const res = await fetch(`${TELEGRAM_API}/${method}`, {
@@ -57,20 +57,16 @@ async function getClientsText(telegramId) {
 
   if (!userId) return 'User not linked. Send /start';
 
-  const result = await pool.query(`
-    SELECT full_name, phone
+  const result = await pool.query(
+    `
+    SELECT full_name, phone, email
     FROM clients
     WHERE user_id = $1
     ORDER BY created_at DESC
     LIMIT 10
-  `, [userId]);
-
-  if (!result.rows.length) return 'No clients yet.';
-
-  return result.rows
-    .map((c, i) => `${i + 1}. ${c.full_name} ${c.phone || ''}`)
-    .join('\n');
-}
+    `,
+    [userId]
+  );
 
   const rows = result.rows;
 
@@ -79,21 +75,30 @@ async function getClientsText(telegramId) {
   return [
     '<b>Latest clients:</b>',
     '',
-    ...rows.map((c, i) =>
-      `${i + 1}. <b>${c.full_name}</b>${c.phone ? ` — ${c.phone}` : ''}${c.email ? ` — ${c.email}` : ''}`
+    ...rows.map(
+      (c, i) =>
+        `${i + 1}. <b>${c.full_name}</b>${c.phone ? ` — ${c.phone}` : ''}${c.email ? ` — ${c.email}` : ''}`
     ),
   ].join('\n');
 }
 
-async function getTodayText() {
-  const result = await pool.query(`
+async function getTodayText(telegramId) {
+  const userId = await getUserIdByTelegram(telegramId);
+
+  if (!userId) return 'User not linked. Send /start';
+
+  const result = await pool.query(
+    `
     SELECT a.service_name, a.appointment_date, c.full_name
     FROM appointments a
     LEFT JOIN clients c ON c.id = a.client_id
-    WHERE DATE(a.appointment_date) = CURRENT_DATE
+    WHERE a.user_id = $1
+      AND DATE(a.appointment_date) = CURRENT_DATE
     ORDER BY a.appointment_date ASC
     LIMIT 10
-  `);
+    `,
+    [userId]
+  );
 
   const rows = result.rows;
 
@@ -102,17 +107,28 @@ async function getTodayText() {
   return [
     '<b>Today appointments:</b>',
     '',
-    ...rows.map((a, i) =>
-      `${i + 1}. <b>${a.service_name}</b> — ${new Date(a.appointment_date).toLocaleString()}${a.full_name ? ` — ${a.full_name}` : ''}`
+    ...rows.map(
+      (a, i) =>
+        `${i + 1}. <b>${a.service_name}</b> — ${new Date(a.appointment_date).toLocaleString()}${a.full_name ? ` — ${a.full_name}` : ''}`
     ),
   ].join('\n');
 }
 
-async function getStatsText() {
+async function getStatsText(telegramId) {
+  const userId = await getUserIdByTelegram(telegramId);
+
+  if (!userId) return 'User not linked. Send /start';
+
   const [clientsCount, appointmentsCount, paymentsSum] = await Promise.all([
-    pool.query(`SELECT COUNT(*)::int AS count FROM clients`),
-    pool.query(`SELECT COUNT(*)::int AS count FROM appointments WHERE DATE(appointment_date) = CURRENT_DATE`),
-    pool.query(`SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM payments`),
+    pool.query(`SELECT COUNT(*)::int AS count FROM clients WHERE user_id = $1`, [userId]),
+    pool.query(
+      `SELECT COUNT(*)::int AS count FROM appointments WHERE user_id = $1 AND DATE(appointment_date) = CURRENT_DATE`,
+      [userId]
+    ),
+    pool.query(
+      `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM payments WHERE user_id = $1`,
+      [userId]
+    ),
   ]);
 
   const clients = clientsCount.rows[0]?.count || 0;
@@ -126,7 +142,16 @@ Today appointments: <b>${todayAppointments}</b>
 Revenue: <b>€${totalRevenue}</b>`;
 }
 
-async function createClientFromText(rawText) {
+async function createClientFromText(rawText, telegramId) {
+  const userId = await getUserIdByTelegram(telegramId);
+
+  if (!userId) {
+    return {
+      ok: false,
+      text: 'User not linked. Send /start',
+    };
+  }
+
   const payload = rawText.replace(/^\/newclient\s*/i, '').trim();
 
   if (!payload) {
@@ -152,11 +177,11 @@ async function createClientFromText(rawText) {
 
   const result = await pool.query(
     `
-    INSERT INTO clients (full_name, phone, email, notes)
-    VALUES ($1, $2, $3, $4)
+    INSERT INTO clients (user_id, full_name, phone, email, notes)
+    VALUES ($1, $2, $3, $4, $5)
     RETURNING id, full_name, phone, email, notes
     `,
-    [full_name, phone, email, notes]
+    [userId, full_name, phone, email, notes]
   );
 
   const client = result.rows[0];
@@ -183,15 +208,15 @@ export async function telegramWebhookController(req, res) {
       });
 
       if (data === 'clients') {
-        await sendMessage(chatId, await getClientsText(), {
+        await sendMessage(chatId, await getClientsText(chatId), {
           reply_markup: mainKeyboard(),
         });
       } else if (data === 'today') {
-        await sendMessage(chatId, await getTodayText(), {
+        await sendMessage(chatId, await getTodayText(chatId), {
           reply_markup: mainKeyboard(),
         });
       } else if (data === 'stats') {
-        await sendMessage(chatId, await getStatsText(), {
+        await sendMessage(chatId, await getStatsText(chatId), {
           reply_markup: mainKeyboard(),
         });
       } else if (data === 'add_client') {
@@ -215,6 +240,26 @@ export async function telegramWebhookController(req, res) {
     const text = message.text.trim();
 
     if (text === '/start') {
+      const telegramId = message.from.id;
+      const username = message.from.username || null;
+      const firstName = message.from.first_name || null;
+      const lastName = message.from.last_name || null;
+
+      const userId = 1; // тимчасово для MVP
+
+      await pool.query(
+        `
+        INSERT INTO bot_links (user_id, telegram_id, username, first_name, last_name)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (telegram_id)
+        DO UPDATE SET
+          username = EXCLUDED.username,
+          first_name = EXCLUDED.first_name,
+          last_name = EXCLUDED.last_name
+        `,
+        [userId, telegramId, username, firstName, lastName]
+      );
+
       await sendMessage(
         chatId,
         `👋 <b>Welcome to Nexara CRM Bot</b>
@@ -227,6 +272,7 @@ Commands:
 /newclient`,
         { reply_markup: mainKeyboard() }
       );
+
       return res.sendStatus(200);
     }
 
@@ -246,72 +292,37 @@ Commands:
     }
 
     if (text === '/clients') {
-      await sendMessage(chatId, await getClientsText(), {
+      await sendMessage(chatId, await getClientsText(chatId), {
         reply_markup: mainKeyboard(),
       });
       return res.sendStatus(200);
     }
 
     if (text === '/today') {
-      await sendMessage(chatId, await getTodayText(), {
+      await sendMessage(chatId, await getTodayText(chatId), {
         reply_markup: mainKeyboard(),
       });
       return res.sendStatus(200);
     }
 
     if (text === '/stats') {
-  const telegramId = message.from.id;
-  const username = message.from.username || null;
-  const firstName = message.from.first_name || null;
-  const lastName = message.from.last_name || null;
-
-  // 🔥 MVP: твій user_id (з таблиці users)
-  const userId = 1;
-
-  await pool.query(`
-    INSERT INTO bot_links (user_id, telegram_id, username, first_name, last_name)
-    VALUES ($1, $2, $3, $4, $5)
-    ON CONFLICT (telegram_id)
-    DO UPDATE SET
-      username = EXCLUDED.username,
-      first_name = EXCLUDED.first_name,
-      last_name = EXCLUDED.last_name
-  `, [
-    userId,
-    telegramId,
-    username,
-    firstName,
-    lastName
-  ]);
-
-  await sendMessage(
-    chatId,
-    `👋 <b>Welcome to Nexara CRM Bot</b>
-
-Commands:
-/help
-/clients
-/today
-/stats`,
-    { reply_markup: mainKeyboard() }
-  );
-
-  return res.sendStatus(200);
-}
+      await sendMessage(chatId, await getStatsText(chatId), {
+        reply_markup: mainKeyboard(),
+      });
+      return res.sendStatus(200);
+    }
 
     if (text.startsWith('/newclient')) {
-      const result = await createClientFromText(text);
+      const result = await createClientFromText(text, chatId);
       await sendMessage(chatId, result.text, {
         reply_markup: mainKeyboard(),
       });
       return res.sendStatus(200);
     }
 
-    await sendMessage(
-      chatId,
-      'Unknown command. Use /help',
-      { reply_markup: mainKeyboard() }
-    );
+    await sendMessage(chatId, 'Unknown command. Use /help', {
+      reply_markup: mainKeyboard(),
+    });
 
     return res.sendStatus(200);
   } catch (error) {
