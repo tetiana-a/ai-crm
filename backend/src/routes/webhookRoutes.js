@@ -1,19 +1,15 @@
 import express from 'express';
-import { telegramWebhookController } from './telegramController.js';
+import { telegramWebhookController } from '../controllers/telegramController.js';
 
 const router = express.Router();
 
-router.post('/telegram', telegramWebhookController);
+router.post('/webhook', async (req, res) => {
+  try {
+    await telegramWebhookController(req, res);
+  } catch (error) {
+    console.error('Webhook error:', error);
+    return res.sendStatus(200);
+  }
+});
 
 export default router;
-if (text.startsWith('/link')) {
-  const code = text.split(' ')[1];
-
-  const result = await linkTelegramToUser(code, chatId, message.from);
-
-  await sendMessage(chatId, result.text, {
-    reply_markup: mainKeyboard(),
-  });
-
-  return res.sendStatus(200);
-}
